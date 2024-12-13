@@ -1,0 +1,18 @@
+pipeline {
+    agent any
+    
+
+    stages {
+        stage('deploy to docekr container') {
+            steps {
+                script {
+                    withDockerRegistry(credentialsId: 'dockerid', url: '') {
+                    sh "docker run -d --name ekart -p 8070:8070 yuvrajdocker001/ekart:latestone"
+                    }
+                }
+            
+            }
+        }
+        
+    }
+}
