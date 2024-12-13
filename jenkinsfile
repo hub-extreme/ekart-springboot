@@ -1,0 +1,72 @@
+pipeline {
+    agent any
+    tools{
+      jdk "jdk11"  
+      maven "maven3"
+    }
+    
+    environment{
+        SCANNER_HOME= tool 'sonar-scanner'
+    }
+
+    stages {
+        stage('git checkout') {
+            steps {
+                git branch: 'main', url: 'https://github.com/jaiswaladi246/Ekart.git'
+            }
+        }
+        stage('compile') {
+            steps {
+                sh "mvn clean compile"
+            
+            }
+        }
+        stage('sonarqube analysis') {
+            steps {
+                sh """ $SCANNER_HOME/bin/sonar-scanner -Dsonar.url=http://13.233.197.115:9000/ \
+                        -Dsonar.login=squ_00211bcda119817e073927baf2b3f0c58c6ebeed \
+                        -Dsonar.projectName=ekart \
+                        -Dsonar.java.binaries=. \
+                        -Dsonar.projectKey=ekart """
+            
+            }
+            
+        }
+        stage('build') {
+            steps {
+                sh "mvn clean package -DskipTests=true"
+            
+            }
+        }
+        stage('build image and tag image') {
+            steps {
+                sh "docker build -t ekart -f docker/Dockerfile ."
+                sh "docker tag ekart yuvrajdocker001/ekart:latestone"
+            }
+        }
+        
+        stage('push image') {
+            steps {
+                script {
+                    withDockerRegistry(credentialsId: 'dockerid', url: '') {
+                    sh "docker push yuvrajdocker001/ekart:latestone"
+                    }
+                }
+            
+            }
+        }
+        stage('deploy to kubernetes') {
+            steps {
+                script {
+                    withKubeConfig(caCertificate: '', clusterName: 'EKS-1', contextName: '', credentialsId: 'k8s', namespace: 'webapps', restrictKubeConfigAccess: false, serverUrl: 'https://678D754BCF0D0E8BA410E9B076F0BD19.gr7.ap-south-1.eks.amazonaws.com') {
+                        sh "kubectl apply -f deploymentservice.yml"
+                       
+                       
+                    }
+                }
+            
+            }
+        }
+        
+    }
+}
